@@ -5,8 +5,6 @@ two_argument_input_checker(){
     if [ $# -ne 2 ]; then
         echo "Error: Two arguments are required."
         echo "Usage: $0 <path_to_directory> <search_string>"
-        echo "type any key to exit"
-        read dummy # it is used for delay 
         exit 1
     fi
 }
@@ -16,8 +14,6 @@ directory_checker(){
     # Check if the provided directory exists and is a directory
     if [ ! -d "$filesdir" ]; then
         echo "Error: Directory $filesdir does not exist."
-        echo "type any key to exit"
-        read dummy # it is used for delay 
         exit 1
     fi
 }
