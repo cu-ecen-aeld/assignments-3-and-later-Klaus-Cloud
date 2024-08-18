@@ -1,4 +1,9 @@
 #include "systemcalls.h"
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+
 
 /**
  * @param cmd the command to execute with system()
@@ -16,8 +21,8 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
-
-    return true;
+    if( 0 == system(cmd) )return true;
+    else return false;
 }
 
 /**
@@ -58,11 +63,36 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+    pid_t p = fork();
+    if(p<0){
+        perror("fork fail"); 
+        return false;
+    }
+    else if( p == 0){
+        execv(command[0],command);
+        perror("execv failed");
+        exit(EXIT_FAILURE); 
+    }
+    else{
+        int status;
+        if (waitpid(p, &status, 0) == -1) {
+            perror("waitpid failed");
+            va_end(args);
+            return false;
+        }
 
-    va_end(args);
-
-    return true;
+        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+            // Command executed successfully
+            va_end(args);
+            return true;
+        } else {
+            // Command failed
+            va_end(args);
+            return false;
+        }
+    }
 }
+
 
 /**
 * @param outputfile - The full path to the file to write with command output.
@@ -74,7 +104,8 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     va_list args;
     va_start(args, count);
     char * command[count+1];
-    int i;
+    int i,fd;
+
     for(i=0; i<count; i++)
     {
         command[i] = va_arg(args, char *);
@@ -92,8 +123,46 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+    fd = open(outputfile,O_WRONLY);
+    if (fd < 0) { perror("open"); abort(); }
+    pid_t p = fork();
 
-    va_end(args);
+    if(p<0){
+        perror("fork fail"); 
+        close(fd);
+        return false;
+    }
+    else if( p == 0){
+        // Child process
+        if (dup2(fd, STDOUT_FILENO) < 0) {
+            perror("dup2 failed");
+            close(fd);
+            exit(EXIT_FAILURE);
+        }
+        close(fd); // Close the file descriptor, it's duplicated to stdout now
+        execv(command[0], command); perror("exec"); abort();
+        perror("execv failed");
+        exit(EXIT_FAILURE); 
+    }
+    else{
+        int status;
+        if (waitpid(p, &status, 0) == -1) {
+            perror("waitpid failed");
+            va_end(args);
+            return false;
+        }
 
-    return true;
+        close(fd);
+        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+            // Command executed successfully
+            va_end(args);
+            return true;
+        } else {
+            // Command failed
+            va_end(args);
+            return false;
+        }
+    }
+     
+
 }
