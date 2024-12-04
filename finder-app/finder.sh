@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 two_argument_input_checker(){
     # Check whether the amount of arguments was inserted properly 
